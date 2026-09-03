@@ -3,13 +3,11 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>出师表 · IP标注工具</title>
+    <title>洛神赋 · IP标注（纯本地）</title>
     <style>
-        * {
-            box-sizing: border-box;
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-        }
+        * { box-sizing: border-box; }
         body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             background: #f1f5f9;
             padding: 24px 16px;
             margin: 0;
@@ -55,7 +53,7 @@
         .drop-zone {
             border: 2px dashed #b9c7d9;
             border-radius: 18px;
-            padding: 20px 16px;
+            padding: 24px 16px;
             text-align: center;
             background: #fafcff;
             transition: 0.2s;
@@ -69,6 +67,21 @@
         }
         .drop-zone .hint { font-weight: 500; color: #1e2b3c; }
         .drop-zone .sub-hint { font-size: 13px; color: #5b6f87; }
+        .url-row{
+            display:flex;
+            gap:10px;
+            align-items:center;
+            margin-bottom:16px;
+            flex-wrap:wrap;
+        }
+        .url-row input{
+            flex:1;
+            min-width:260px;
+            padding:9px 12px;
+            border-radius:12px;
+            border:1px solid #d0d8e3;
+            font-size:14px;
+        }
         .row-2col {
             display: flex;
             flex-wrap: wrap;
@@ -131,28 +144,9 @@
         .btn-success:hover { background: #166332; }
         .btn-outline { background: transparent; border-color: #cad2de; }
         .btn-outline:hover { background: #f1f4f8; }
-        .btn-sm { padding: 5px 14px; font-size: 13px; }
-        .url-group {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 8px 12px;
-            background: #f6f9fc;
-            padding: 6px 14px 6px 18px;
-            border-radius: 40px;
-            border: 1px solid #dbe1ea;
-        }
-        .url-group input {
-            border: none;
-            background: transparent;
-            padding: 6px 0;
-            min-width: 200px;
-            font-size: 13px;
-            outline: none;
-            flex: 1 1 180px;
-            color: #0a1a2b;
-        }
-        .url-group input::placeholder { color: #8a9cb0; }
+        .btn-cloud { background:#24292f;color:#fff; }
+        .btn-cloud:hover{background:#373e47;}
+        .flex-grow { flex: 1; }
         .result-area {
             margin-top: 20px;
             border-top: 1px solid #e2e8f0;
@@ -170,184 +164,198 @@
         }
         .status-msg.success { color: #1a7540; }
         .status-msg.warning { color: #b45309; }
-        .flex-grow { flex: 1; }
+        /* modal弹窗 */
+        .modal-mask{
+            position:fixed;
+            inset:0;
+            background:rgba(0,0,0,0.45);
+            display:none;
+            align-items:center;
+            justify-content:center;
+            z-index:999;
+        }
+        .modal-wrap{
+            background:#fff;
+            width:min(520px,92vw);
+            border-radius:20px;
+            padding:22px 24px;
+        }
+        .modal-row{margin-bottom:14px;}
+        .modal-row input{
+            width:100%;
+            padding:10px 12px;
+            border-radius:10px;
+            border:1px solid #d0d8e3;
+        }
+        .modal-buttons{
+            display:flex;gap:10px;justify-content:flex-end;margin-top:18px;
+        }
         @media (max-width: 640px) {
             .container { padding: 16px; }
             .row-2col { flex-direction: column; gap: 12px; }
-            .url-group { flex-wrap: wrap; }
         }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>📜 出师表 · IP标注</h1>
+    <h1>📜 洛神赋 · IP标注（纯本地）</h1>
     <div class="sub-bar">
-        <span>按顺序分配《出师表》片段 · 超出则保留原样</span>
-        <span class="badge" id="countDisplay">IP: 0 | 诗词: 0</span>
+        <span>输出仅保留有效IP，自动过滤注释/空行/文本</span>
+        <span class="badge" id="countDisplay">IP: 0 | 节点名: 0</span>
     </div>
-
-    <!-- 拖放区 -->
+    <div class="url-row">
+        <input id="urlInput" type="text" value="https://ips.gaoji.uk/best_ips.txt" placeholder="填入IP文本地址">
+        <button class="btn btn-primary" id="fetchUrlBtn">🌐从URL加载IP</button>
+    </div>
     <div class="drop-zone" id="dropZone">
-        <div class="hint">📂 拖放 .txt 文件到此处 · 自动识别IP或诗词</div>
-        <div class="sub-hint">点击也可选择文件</div>
+        <div class="hint">📂 拖放 .txt 文件到此处</div>
+        <div class="sub-hint">点击也可选择文件 · 自动识别IP或节点名称</div>
     </div>
-
-    <!-- 网址读取栏 -->
-    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; align-items: center;">
-        <div class="url-group">
-            <span style="font-weight: 500; color: #1f3a57;">🌐 从URL读取</span>
-            <input type="text" id="urlInput" placeholder="输入 .txt 文件网址" value="https://raw.githubusercontent.com/your/repo/example.txt" />
-            <button class="btn btn-primary btn-sm" id="fetchUrlBtn">加载</button>
-        </div>
-        <span style="font-size: 13px; color: #5a6f87;">支持 IP列表 或 诗词片段</span>
-    </div>
-
-    <!-- 双栏输入 -->
     <div class="row-2col">
         <div class="col">
-            <label for="poemInput">📖 出师表片段（每行一个）</label>
-            <textarea id="poemInput" rows="9" spellcheck="false">臣亮言
-先帝创业未半而中道崩殂
-今天下三分
-益州疲弊
-此诚危急存亡之秋也
-然侍卫之臣不懈于内
-忠志之士忘身于外者
-盖追先帝之殊遇
-欲报之于陛下也
-诚宜开张圣听
-以光先帝遗德
-恢弘志士之气
-不宜妄自菲薄
-引喻失义
-以塞忠谏之路也
-宫中府中
-俱为一体
-陟罚臧否
-不宜异同
-若有作奸犯科及为忠善者
-宜付有司
-论其刑赏
-以昭陛下平明之理
-不宜偏私
-使内外异法也
-侍中侍郎郭攸之
-费祎
-董允等
-此皆良实
-志虑忠纯
-是以先帝简拔以遗陛下
-愚以为宫中之事
-事无大小
-悉以咨之
-然后施行
-必能裨补阙漏
-有所广益
-将军向宠
-性行淑均
-晓畅军事
-试用于昔日
-先帝称之曰能
-是以众议举宠为督
-愚以为营中之事
-悉以咨之
-必能使行阵和睦
-优劣得所
-亲贤臣
-远小人
-此先汉所以兴隆也
-亲小人
-远贤臣
-此后汉所以倾颓也
-先帝在时
-每与臣论此事
-未尝不叹息痛恨于桓灵也
-侍中
-尚书
-长史
-参军
-此悉贞良死节之臣
-愿陛下亲之信之
-则汉室之隆
-可计日而待也
-臣本布衣
-躬耕于南阳
-苟全性命于乱世
-不求闻达于诸侯
-先帝不以臣卑鄙
-猥自枉屈
-三顾臣于草庐之中
-咨臣以当世之事
-由是感激
-遂许先帝以驱驰
-后值倾覆
-受任于败军之际
-奉命于危难之间
-尔来二十有一年矣
-先帝知臣谨慎
-故临崩寄臣以大事也
-受命以来
-夙夜忧叹
-恐托付不效
-以伤先帝之明
-故五月渡泸
-深入不毛
-今南方已定
-兵甲已足
-当奖率三军
-北定中原
-庶竭驽钝
-攘除奸凶
-兴复汉室
-还于旧都
-此臣所以报先帝而忠陛下之职分也
-至于斟酌损益
-进尽忠言
-则攸之
-祎
-允之任也
-愿陛下托臣以讨贼兴复之效
-不效
-则治臣之罪
-以告先帝之灵
-若无兴德之言
-则责攸之
-祎
-允等之慢
-以彰其咎
-陛下亦宜自谋
-以咨诹善道
-察纳雅言
-深追先帝遗诏
-臣不胜受恩感激
-今当远离
-临表涕零
-不知所言</textarea>
+            <label for="poemInput">📖 洛神赋节点名（一行一个，共100个）</label>
+            <textarea id="poemInput" rows="22" spellcheck="false">翩若惊鸿
+婉若游龙
+荣曜秋菊
+华茂春松
+云髻峨峨
+修眉联娟
+丹唇外朗
+皓齿内鲜
+明眸善睐
+靥辅承权
+瑰姿艳逸
+仪静体闲
+柔情绰态
+媚于语言
+凌波微步
+罗袜生尘
+动无常则
+若危若安
+进止难期
+若往若还
+轻云蔽月
+流风回雪
+皎升朝霞
+灼出渌波
+芳泽无加
+铅华弗御
+华容婀娜
+含辞未吐
+气若幽兰
+瑰艳难穷
+披罗曳绮
+金翠耀目
+微幽兰芳
+珥瑶碧华
+肩若削成
+腰如约素
+延颈秀项
+皓质呈露
+翩跹若舞
+顾盼生辉
+神姿飒爽
+灵韵悠然
+琼姿绰约
+玉骨冰肌
+仙袂飘飘
+环佩锵鸣
+雾绡轻裾
+罗绮流光
+灵眸流转
+秀靥嫣然
+芳情缱绻
+逸态横生
+翠鬓凝香
+绮袖回风
+玉珮鸣琅
+素袂含烟
+清辉照影
+幽情暗寄
+雅韵天成
+灵风拂袂
+瑶光映身
+星眸湛然
+绮思渺渺
+清颜皎皎
+逸翮凌虚
+灵襟澹荡
+芳音渺远
+琼裾曳雾
+翠黛凝愁
+柔姿曼衍
+仙容冶丽
+清思邈然
+灵襟幽远
+玉颜绰绰
+华裾冉冉
+幽芳自溢
+明姿粲然
+轻裾逐风
+灵态悠扬
+琼英照夜
+素影凌波
+妍姿粹质
+逸韵泠然
+芳襟漠漠
+秀色融融
+神融气泰
+光浮玉艳
+翠罗萦步
+绮梦翩绵
+灵姿澹冶
+华光若曜
+幽思盈怀
+妍光流转
+玉袖扬风
+仙裾漫舞
+清芬漫衍
+灵秀弥彰
+瑶姿婉婉
+琼韵泠泠</textarea>
         </div>
         <div class="col">
             <label for="ipInput">🌐 IP列表（格式：IP:端口#标签）</label>
-            <textarea id="ipInput" rows="9" spellcheck="false">101.32.41.107:443#HK_1 [超哥优选]
+            <textarea id="ipInput" rows="22" spellcheck="false">#注释标题
+101.32.41.107:443#HK_1 [超哥优选]
 166.88.7.117:443#MY_1 [超哥优选]
 198.176.52.248:10123#NRT
 162.159.25.26:443#新加坡
 172.64.50.38:8443#日本</textarea>
         </div>
     </div>
-
-    <!-- 按钮组 -->
     <div class="toolbar">
         <button class="btn btn-primary" id="processBtn">▶ 处理</button>
         <button class="btn btn-success" id="exportBtn">📥 导出TXT</button>
+        <button class="btn btn-cloud" id="uploadGhBtn">☁ 上传GitHub</button>
         <button class="btn btn-outline" id="copyBtn">📋 复制结果</button>
         <button class="btn btn-outline" id="clearBtn">🗑️ 清空结果</button>
         <span class="flex-grow"></span>
         <span class="status-msg" id="statusMsg">就绪</span>
     </div>
-
-    <!-- 输出区域 -->
     <div class="result-area">
-        <label>📄 输出结果（# 后已替换）</label>
-        <textarea id="resultOutput" rows="10" readonly></textarea>
+        <label>📄 输出结果（仅保留有效IP，过滤注释空行）</label>
+        <textarea id="resultOutput" rows="12" readonly></textarea>
+    </div>
+</div>
+
+<!-- GitHub配置弹窗 -->
+<div class="modal-mask" id="ghModal">
+    <div class="modal-wrap">
+        <h3 style="margin-top:0">GitHub上传配置（仓库：urbbr857857‑sketch/ip main分支）</h3>
+        <div class="modal-row">
+            <label>Personal Access Token(PAT)</label>
+            <input id="ghPat" placeholder="填入你的GitHub PAT，需要repo权限">
+        </div>
+        <div class="modal-row">
+            <label>提交备注commit message</label>
+            <input id="ghCommitMsg" value="更新洛神ip.txt 自动工具提交">
+        </div>
+        <div style="font-size:12px;color:#666;">提示：令牌仅保存在浏览器本地localStorage，不会上传第三方；上传固定文件名：洛神ip.txt</div>
+        <div class="modal-buttons">
+            <button class="btn btn-outline" id="ghCancel">取消</button>
+            <button class="btn btn-primary" id="ghSaveAndUpload">保存并开始上传</button>
+        </div>
     </div>
 </div>
 
@@ -362,53 +370,168 @@
         const urlInput = document.getElementById('urlInput');
         const fetchUrlBtn = document.getElementById('fetchUrlBtn');
 
-        // 更新计数
+        const uploadGhBtn = document.getElementById('uploadGhBtn');
+        const ghModal = document.getElementById('ghModal');
+        const ghPat = document.getElementById('ghPat');
+        const ghCommitMsg = document.getElementById('ghCommitMsg');
+        const ghCancel = document.getElementById('ghCancel');
+        const ghSaveAndUpload = document.getElementById('ghSaveAndUpload');
+
+        const GH_OWNER = "urbbr857857-sketch";
+        const GH_REPO = "ip";
+        const GH_BRANCH = "main";
+
         function updateCounts() {
             const poems = poemInput.value.split('\n').filter(l => l.trim() !== '');
             const ips = ipInput.value.split('\n').filter(l => l.trim() !== '');
-            countDisplay.textContent = `IP: ${ips.length} | 诗词: ${poems.length}`;
+            countDisplay.textContent = `IP: ${ips.length} | 节点名: ${poems.length}`;
         }
 
-        // 核心处理
+        async function fetchIpFromUrl(){
+            const rawUrl = urlInput.value.trim();
+            if(!rawUrl){
+                statusMsg.textContent = "⚠️请输入网址";
+                statusMsg.className = 'status-msg warning';
+                return;
+            }
+            let targetUrl;
+            try{
+                targetUrl = new URL(rawUrl).href;
+            }catch(e){
+                statusMsg.textContent = "❌网址格式不正确";
+                statusMsg.className = 'status-msg warning';
+                return;
+            }
+            const encoded = encodeURIComponent(targetUrl);
+            const attempts = [
+                {
+                    name: "直接读取",
+                    url: targetUrl,
+                    headers: { "Accept": "text/plain,text/*,*/*" }
+                },
+                {
+                    name: "Jina Reader",
+                    url: "https://r.jina.ai/" + targetUrl,
+                    headers: { "Accept": "text/plain,*/*" }
+                },
+                {
+                    name: "AllOrigins",
+                    url: "https://api.allorigins.win/raw?url=" + encoded,
+                    headers: { "Accept": "text/plain,*/*" }
+                },
+                {
+                    name: "corsproxy.io",
+                    url: "https://corsproxy.io/?" + encoded,
+                    headers: { "Accept": "text/plain,*/*" }
+                },
+                {
+                    name: "CodeTabs",
+                    url: "https://api.codetabs.com/v1/proxy?quest=" + encoded,
+                    headers: { "Accept": "text/plain,*/*" }
+                }
+            ];
+            statusMsg.textContent = "⏳正在读取网址内容，请稍候...";
+            statusMsg.className = 'status-msg';
+            let lastError = null;
+            for(const attempt of attempts){
+                let controller = null;
+                let timer = null;
+                try{
+                    statusMsg.textContent = `⏳正在尝试：${attempt.name}...`;
+                    controller = new AbortController();
+                    timer = setTimeout(() => controller.abort(), 15000);
+                    const resp = await fetch(attempt.url, {
+                        method: "GET",
+                        mode: "cors",
+                        cache: "no-store",
+                        redirect: "follow",
+                        headers: attempt.headers,
+                        signal: controller.signal
+                    });
+                    if(!resp.ok){
+                        throw new Error(`HTTP ${resp.status}`);
+                    }
+                    let text = await resp.text();
+                    text = text.replace(/^\uFEFF/, "");
+                    const trimmed = text.trim();
+                    if(!trimmed){
+                        throw new Error("返回内容为空");
+                    }
+                    const looksLikeHtml =
+                        /^<!doctype\s+html/i.test(trimmed) ||
+                        /^<html[\s>]/i.test(trimmed);
+                    if(looksLikeHtml){
+                        throw new Error("返回的是网页 HTML，不是文本内容");
+                    }
+                    ipInput.value = text;
+                    updateCounts();
+                    statusMsg.textContent =
+                        `✅ 获取成功（${attempt.name}），共 ${text.split(/\r?\n/).filter(x => x.trim()).length} 行`;
+                    statusMsg.className = 'status-msg success';
+                    processIPs();
+                    return;
+                }catch(err){
+                    lastError = err;
+                    console.warn(`[URL读取失败] ${attempt.name}:`, err);
+                }finally{
+                    if(timer) clearTimeout(timer);
+                }
+            }
+            statusMsg.textContent =
+                `❌ 所有自动读取方式都失败了。原因通常是目标网站限制跨域或代理被网络拦截。最后错误：${lastError ? lastError.message : "未知错误"}`;
+            statusMsg.className = 'status-msg warning';
+            try{
+                window.open(targetUrl, "_blank", "noopener,noreferrer");
+            }catch(e){}
+        }
+
         function processIPs() {
             const poemLines = poemInput.value.split('\n').map(l => l.trim()).filter(l => l !== '');
-            const ipLines = ipInput.value.split('\n').map(l => l.trim()).filter(l => l !== '');
+            const ipRawLines = ipInput.value.split('\n');
 
             if (poemLines.length === 0) {
-                statusMsg.textContent = '⚠️ 请至少输入一行诗词片段';
+                statusMsg.textContent = '⚠️ 请至少输入一个节点名称';
                 statusMsg.className = 'status-msg warning';
                 return;
             }
-            if (ipLines.length === 0) {
-                statusMsg.textContent = '⚠️ 请至少输入一个 IP';
+            if (ipRawLines.length === 0) {
+                statusMsg.textContent = '⚠️ IP输入框内容为空';
                 statusMsg.className = 'status-msg warning';
                 return;
             }
 
-            const usedCount = Math.min(poemLines.length, ipLines.length);
+            const ipLineReg = /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+/;
+            let poemIndex = 0;
+            let replacedIpCount = 0;
             const result = [];
 
-            for (let i = 0; i < ipLines.length; i++) {
-                const line = ipLines[i];
-                const hashPos = line.indexOf('#');
+            for (const line of ipRawLines) {
+                const isIpLine = ipLineReg.test(line);
+                // 非IP行直接跳过，过滤注释、空行、文本
+                if (!isIpLine) {
+                    continue;
+                }
                 let ipPart = line;
+                const hashPos = line.indexOf('#');
                 if (hashPos !== -1) {
                     ipPart = line.substring(0, hashPos);
                 }
-                if (i < usedCount) {
-                    result.push(ipPart + '#' + poemLines[i]);
+                if (poemIndex < poemLines.length) {
+                    result.push(ipPart + '#' + poemLines[poemIndex]);
+                    poemIndex++;
+                    replacedIpCount++;
                 } else {
                     result.push(line);
                 }
             }
 
             resultOutput.value = result.join('\n');
-            statusMsg.textContent = `✅ 处理完成！共 ${ipLines.length} 个 IP，使用了 ${usedCount} 个诗词片段（${ipLines.length > usedCount ? '剩余 ' + (ipLines.length - usedCount) + ' 个保持原样' : '全部替换'}）`;
+            const remainPoem = poemLines.length - replacedIpCount;
+            statusMsg.textContent = `✅处理完成！检测替换IP：${replacedIpCount}个，剩余节点名：${remainPoem}`;
             statusMsg.className = 'status-msg success';
             updateCounts();
         }
 
-        // 导出TXT
         function exportTXT() {
             const content = resultOutput.value;
             if (!content.trim()) {
@@ -419,7 +542,7 @@
             const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `ip_${new Date().toISOString().slice(0,10)}.txt`;
+            link.download = `ip_洛神赋_${new Date().toISOString().slice(0,10)}.txt`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -453,48 +576,6 @@
             updateCounts();
         }
 
-        // ------ 从URL加载TXT ------
-        function loadFromUrl(url) {
-            if (!url || url.trim() === '') {
-                statusMsg.textContent = '⚠️ 请输入有效的网址';
-                statusMsg.className = 'status-msg warning';
-                return;
-            }
-            statusMsg.textContent = '⏳ 正在加载...';
-            statusMsg.className = 'status-msg';
-            fetch(url, { cache: 'no-cache' })
-                .then(res => {
-                    if (!res.ok) throw new Error(`HTTP ${res.status} — ${res.statusText}`);
-                    return res.text();
-                })
-                .then(text => {
-                    const lines = text.split('\n').filter(l => l.trim() !== '');
-                    if (lines.length === 0) {
-                        statusMsg.textContent = '⚠️ 文件为空或无有效内容';
-                        statusMsg.className = 'status-msg warning';
-                        return;
-                    }
-                    // 判断是IP列表还是诗词列表：包含 # 或 : 且含有数字/IP特征
-                    const hasIpPattern = lines.some(l => l.includes('#') || (l.includes(':') && /\d+\.\d+\.\d+\.\d+/.test(l)));
-                    if (hasIpPattern) {
-                        ipInput.value = text;
-                        statusMsg.textContent = `✅ 已从URL加载IP列表 (${lines.length} 行)`;
-                    } else {
-                        poemInput.value = text;
-                        statusMsg.textContent = `✅ 已从URL加载诗词片段 (${lines.length} 行)`;
-                    }
-                    statusMsg.className = 'status-msg success';
-                    updateCounts();
-                    // 自动处理
-                    processIPs();
-                })
-                .catch(err => {
-                    statusMsg.textContent = `❌ 加载失败: ${err.message}`;
-                    statusMsg.className = 'status-msg warning';
-                });
-        }
-
-        // ------ 拖放逻辑 ------
         function handleDrop(e) {
             e.preventDefault();
             dropZone.classList.remove('drag-over');
@@ -516,7 +597,7 @@
                     statusMsg.textContent = `📂 已加载IP列表 (${lines.length} 行)`;
                 } else {
                     poemInput.value = content;
-                    statusMsg.textContent = `📂 已加载诗词片段 (${lines.length} 行)`;
+                    statusMsg.textContent = `📂 已加载节点名称 (${lines.length} 行)`;
                 }
                 statusMsg.className = 'status-msg success';
                 updateCounts();
@@ -531,14 +612,13 @@
         dropZone.addEventListener('dragover', handleDragOver);
         dropZone.addEventListener('dragleave', handleDragLeave);
         dropZone.addEventListener('drop', handleDrop);
-
-        // 点击拖放区选择文件
         dropZone.addEventListener('click', function() {
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = '.txt,.csv,.text';
             input.onchange = (e) => {
                 if (!e.target.files[0]) return;
+                const file = e.target.files[0];
                 const reader = new FileReader();
                 reader.onload = (ev) => {
                     const content = ev.target.result;
@@ -546,7 +626,7 @@
                     if (lines.length === 0) return;
                     const hasIp = lines.some(l => l.includes('#') || (l.includes(':') && /\d+\.\d+\.\d+\.\d+/.test(l)));
                     if (hasIp) { ipInput.value = content; } else { poemInput.value = content; }
-                    statusMsg.textContent = `📂 已加载${hasIp ? 'IP列表' : '诗词'} (${lines.length} 行)`;
+                    statusMsg.textContent = `📂 已加载${hasIp ? 'IP列表' : '节点名称'} (${lines.length} 行)`;
                     statusMsg.className = 'status-msg success';
                     updateCounts();
                     processIPs();
@@ -556,29 +636,106 @@
             input.click();
         });
 
-        // 按钮绑定
+        // GitHub上传弹窗逻辑
+        function openGhModal(){
+            ghModal.style.display='flex';
+            const savedPat = localStorage.getItem('gh_pat');
+            if(savedPat) ghPat.value = savedPat;
+        }
+        function closeGhModal(){
+            ghModal.style.display='none';
+        }
+
+        async function githubUpload(pat, commitMsg, fileContent){
+            // 固定上传文件名：洛神ip.txt
+            const fileName = `洛神ip.txt`;
+            const apiBase = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${fileName}`;
+            let sha = null;
+            // 先获取sha（文件存在就覆盖）
+            try{
+                const getResp = await fetch(apiBase,{
+                    headers:{
+                        "Authorization":`Bearer ${pat}`,
+                        "Accept":"application/vnd.github+json",
+                        "X-GitHub-Api-Version":"2022-11-28"
+                    }
+                });
+                if(getResp.ok){
+                    const getJson = await getResp.json();
+                    sha = getJson.sha;
+                }
+            }catch(e){console.log("文件不存在，新建洛神ip.txt");}
+
+            const bodyObj = {
+                message: commitMsg,
+                content: btoa(unescape(encodeURIComponent(fileContent))),
+                branch:GH_BRANCH
+            };
+            if(sha) bodyObj.sha = sha;
+
+            const putResp = await fetch(apiBase,{
+                method:"PUT",
+                headers:{
+                    "Authorization":`Bearer ${pat}`,
+                    "Accept":"application/vnd.github+json",
+                    "X-GitHub-Api-Version":"2022-11-28",
+                    "Content-Type":"application/json"
+                },
+                body:JSON.stringify(bodyObj)
+            });
+            const putJson = await putResp.json();
+            if(!putResp.ok){
+                throw new Error(putJson.message || "上传github失败");
+            }
+            return {
+                html_url: putJson.content.html_url,
+                fileName
+            };
+        }
+
+        async function doGhUpload(){
+            const content = resultOutput.value;
+            if(!content.trim()){
+                statusMsg.textContent="⚠️结果框为空，不能上传";
+                statusMsg.className="status-msg warning";
+                return;
+            }
+            const pat = ghPat.value.trim();
+            const msg = ghCommitMsg.value.trim();
+            if(!pat){
+                statusMsg.textContent="⚠️请填写GitHub PAT令牌";
+                statusMsg.className="status-msg warning";
+                return;
+            }
+            localStorage.setItem('gh_pat',pat);
+            closeGhModal();
+            statusMsg.textContent="☁正在提交到GitHub...";
+            statusMsg.className="status-msg";
+            try{
+                const res = await githubUpload(pat,msg,content);
+                statusMsg.textContent=`✅上传成功！文件：${res.fileName}`;
+                statusMsg.className="status-msg success";
+                window.open(res.html_url,"_blank");
+            }catch(err){
+                statusMsg.textContent=`❌GitHub上传失败：${err.message}`;
+                statusMsg.className="status-msg warning";
+            }
+        }
+
+        uploadGhBtn.addEventListener('click',openGhModal);
+        ghCancel.addEventListener('click',closeGhModal);
+        ghSaveAndUpload.addEventListener('click',doGhUpload);
+        ghModal.addEventListener('click',(ev)=>{
+            if(ev.target === ghModal) closeGhModal();
+        });
+
         document.getElementById('processBtn').addEventListener('click', processIPs);
         document.getElementById('exportBtn').addEventListener('click', exportTXT);
         document.getElementById('copyBtn').addEventListener('click', copyResult);
         document.getElementById('clearBtn').addEventListener('click', clearResult);
-
-        // URL加载按钮
-        fetchUrlBtn.addEventListener('click', () => {
-            loadFromUrl(urlInput.value.trim());
-        });
-        // 回车触发加载
-        urlInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                loadFromUrl(urlInput.value.trim());
-            }
-        });
-
-        // 输入更新计数
+        fetchUrlBtn.addEventListener('click',fetchIpFromUrl);
         poemInput.addEventListener('input', updateCounts);
         ipInput.addEventListener('input', updateCounts);
-
-        // 初始化
         updateCounts();
         setTimeout(processIPs, 120);
     })();
